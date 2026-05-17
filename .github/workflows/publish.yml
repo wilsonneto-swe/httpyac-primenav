@@ -38,6 +38,12 @@ jobs:
         run: npx --yes @vscode/vsce package --out httpyac-primenav.vsix
 
       # Open VSX is the registry Cursor installs extensions from.
+      # create-namespace is a one-time claim; this is idempotent and stays
+      # green on later runs when the namespace already exists.
+      - name: Ensure Open VSX namespace
+        if: ${{ env.OPEN_VSX_TOKEN != '' }}
+        run: npx --yes ovsx create-namespace wilsonneto-swe -p "$OPEN_VSX_TOKEN" || echo "namespace already exists — continuing"
+
       - name: Publish to Open VSX
         if: ${{ env.OPEN_VSX_TOKEN != '' }}
         run: npx --yes ovsx publish httpyac-primenav.vsix -p "$OPEN_VSX_TOKEN"
