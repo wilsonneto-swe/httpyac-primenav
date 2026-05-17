@@ -60,6 +60,29 @@ interface FakeWatcher {
   delete: EventEmitter<Uri>;
 }
 
+/** Minimal in-memory Memento for testing stores that use workspaceState. */
+export class FakeMemento {
+  private readonly map = new Map<string, unknown>();
+
+  get<T>(key: string): T | undefined;
+  get<T>(key: string, defaultValue: T): T;
+  get<T>(key: string, defaultValue?: T): T | undefined {
+    return this.map.has(key) ? (this.map.get(key) as T) : defaultValue;
+  }
+
+  async update(key: string, value: unknown): Promise<void> {
+    if (value === undefined) {
+      this.map.delete(key);
+    } else {
+      this.map.set(key, value);
+    }
+  }
+
+  keys(): readonly string[] {
+    return [...this.map.keys()];
+  }
+}
+
 const state = {
   files: new Map<string, string>(),
   watchers: [] as FakeWatcher[]
@@ -113,6 +136,52 @@ export const workspace = {
     return uri.fsPath.replace(/^\/workspace\//, '');
   }
 };
+
+// ---- VS Code tree/UI fakes -----------------------------------------------
+
+export enum TreeItemCollapsibleState {
+  None = 0,
+  Collapsed = 1,
+  Expanded = 2
+}
+
+export class TreeItem {
+  label?: string;
+  id?: string;
+  description?: string | boolean;
+  tooltip?: string;
+  iconPath?: unknown;
+  contextValue?: string;
+  command?: unknown;
+  resourceUri?: Uri;
+
+  constructor(
+    public readonly labelOrUri: string | Uri,
+    public readonly collapsibleState?: TreeItemCollapsibleState
+  ) {
+    if (typeof labelOrUri === 'string') {
+      this.label = labelOrUri;
+    }
+  }
+}
+
+export class ThemeIcon {
+  static readonly File = new ThemeIcon('file');
+  static readonly Folder = new ThemeIcon('folder');
+  constructor(
+    public readonly id: string,
+    public readonly color?: unknown
+  ) {}
+}
+
+export class ThemeColor {
+  constructor(public readonly id: string) {}
+}
+
+export enum QuickPickItemKind {
+  Separator = -1,
+  Default = 0
+}
 
 export const window = {
   showWarningMessage: (..._args: unknown[]) => Promise.resolve(undefined),

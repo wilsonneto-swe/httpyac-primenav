@@ -2,7 +2,17 @@ import * as vscode from 'vscode';
 import { WorkspaceIndex } from '../workspace/workspaceIndex';
 import { ParsedFile, displayLabel } from '../types';
 import { methodIcon } from '../icons/methodIcon';
-import { FileNode, FolderNode, NavNode, RequestNode, SectionNode } from './treeItems';
+import {
+  FileNode,
+  FolderNode,
+  GroupNode,
+  NavNode,
+  RequestNode,
+  SectionNode,
+  StalePinNode
+} from './treeItems';
+import { FavoritesStore } from '../state/favoritesStore';
+import { computeKey } from '../state/requestKey';
 
 /** Above this many files, file nodes start collapsed. */
 const COLLAPSE_FILE_THRESHOLD = 5;
@@ -18,9 +28,13 @@ export class RequestsTreeProvider implements vscode.TreeDataProvider<NavNode> {
 
   private roots: NavNode[] = [];
 
-  constructor(private readonly index: WorkspaceIndex) {
+  constructor(
+    private readonly index: WorkspaceIndex,
+    private readonly store: FavoritesStore
+  ) {
     this.roots = this.build();
     index.onDidChange(() => this.refresh());
+    store.onDidChange(() => this.refresh());
   }
 
   refresh(): void {
@@ -32,11 +46,19 @@ export class RequestsTreeProvider implements vscode.TreeDataProvider<NavNode> {
     if (!element) {
       return this.roots;
     }
-    return element.kind === 'request' ? [] : element.children;
+    switch (element.kind) {
+      case 'request':
+      case 'stalePin':
+        return [];
+      default:
+        return element.children;
+    }
   }
 
   getTreeItem(node: NavNode): vscode.TreeItem {
     switch (node.kind) {
+      case 'group':
+        return this.groupItem(node);
       case 'folder':
         return this.folderItem(node);
       case 'file':
@@ -45,16 +67,27 @@ export class RequestsTreeProvider implements vscode.TreeDataProvider<NavNode> {
         return this.sectionItem(node);
       case 'request':
         return this.requestItem(node);
+      case 'stalePin':
+        return this.stalePinItem(node);
     }
   }
 
   // --- tree item construction -------------------------------------------
+
+  private groupItem(node: GroupNode): vscode.TreeItem {
+    const item = new vscode.TreeItem('Pinned', vscode.TreeItemCollapsibleState.Expanded);
+    item.id = `group:${node.id}`;
+    item.iconPath = new vscode.ThemeIcon('pinned');
+    item.contextValue = 'group-pinned';
+    return item;
+  }
 
   private folderItem(node: FolderNode): vscode.TreeItem {
     const item = new vscode.TreeItem(
       node.label,
       vscode.TreeItemCollapsibleState.Expanded
     );
+    item.id = `folder:${node.label}`;
     item.iconPath = vscode.ThemeIcon.Folder;
     item.contextValue = 'folder';
     return item;
@@ -67,6 +100,7 @@ export class RequestsTreeProvider implements vscode.TreeDataProvider<NavNode> {
         ? vscode.TreeItemCollapsibleState.Expanded
         : vscode.TreeItemCollapsibleState.Collapsed
     );
+    item.id = `file:${node.uri.toString()}`;
     item.resourceUri = node.uri;
     item.iconPath = vscode.ThemeIcon.File;
     item.description = `${node.requestCount} request${node.requestCount === 1 ? '' : 's'}`;
@@ -91,17 +125,21 @@ export class RequestsTreeProvider implements vscode.TreeDataProvider<NavNode> {
       displayLabel(region),
       vscode.TreeItemCollapsibleState.None
     );
+    item.id = `request:${node.source}:${node.key}`;
     item.iconPath = methodIcon(region.method, region.disabled);
-    item.contextValue = 'request';
+    item.contextValue = node.pinned ? 'request-pinned' : 'request';
 
     const descParts: string[] = [];
+    if (node.pinned) {
+      descParts.push('$(pinned)');
+    }
     if (region.method && !displayLabel(region).startsWith(region.method)) {
       descParts.push(region.method);
     }
     if (region.disabled) {
       descParts.push('(disabled)');
     }
-    item.description = descParts.join(' ');
+    item.description = descParts.join(' ') || undefined;
 
     const tooltipLines: string[] = [];
     if (region.method || region.url) {
@@ -120,6 +158,18 @@ export class RequestsTreeProvider implements vscode.TreeDataProvider<NavNode> {
     return item;
   }
 
+  private stalePinItem(node: StalePinNode): vscode.TreeItem {
+    const { entry } = node;
+    const label = entry.label;
+    const item = new vscode.TreeItem(label, vscode.TreeItemCollapsibleState.None);
+    item.id = `stalePin:${entry.key}`;
+    item.description = '(missing)';
+    item.tooltip = `${entry.method ?? ''} ${entry.url ?? ''}`.trim() || entry.uri;
+    item.iconPath = new vscode.ThemeIcon('warning', new vscode.ThemeColor('list.warningForeground'));
+    item.contextValue = 'stale-pin';
+    return item;
+  }
+
   // --- tree construction ------------------------------------------------
 
   private build(): NavNode[] {
@@ -129,6 +179,9 @@ export class RequestsTreeProvider implements vscode.TreeDataProvider<NavNode> {
     const groupBySections = vscode.workspace
       .getConfiguration('httpyacPrimeNav')
       .get<boolean>('groupBySections', true);
+    const showPinned = vscode.workspace
+      .getConfiguration('httpyacPrimeNav')
+      .get<boolean>('showPinned', true);
 
     const root: DirEntry = { dirs: new Map(), files: [] };
     for (const file of files) {
@@ -145,11 +198,49 @@ export class RequestsTreeProvider implements vscode.TreeDataProvider<NavNode> {
         cur = next;
       }
       cur.files.push(file);
-      // remember display name without mutating ParsedFile
       fileNames.set(file, fileName);
     }
 
-    return this.dirChildren(root, groupBySections, collapseFiles);
+    const fileTree = this.dirChildren(root, groupBySections, collapseFiles);
+
+    if (!showPinned) {
+      return fileTree;
+    }
+
+    const pinned = this.store.pinned();
+    if (pinned.length === 0) {
+      return fileTree;
+    }
+
+    // Build a lookup: key → RequestNode (from the live index)
+    const keyToRequest = new Map<string, RequestNode>();
+    for (const file of files) {
+      for (const region of file.regions) {
+        if (region.kind === 'request') {
+          const key = computeKey(region, file.uri);
+          keyToRequest.set(key, {
+            kind: 'request',
+            uri: file.uri,
+            line: region.requestLine,
+            region,
+            pinned: true,
+            key,
+            source: 'pinned'
+          });
+        }
+      }
+    }
+
+    const pinnedChildren: NavNode[] = pinned.map((entry) => {
+      const node = keyToRequest.get(entry.key);
+      if (node) {
+        return node;
+      }
+      return { kind: 'stalePin', entry } satisfies StalePinNode;
+    });
+
+    const group: GroupNode = { kind: 'group', id: 'pinned', children: pinnedChildren };
+    return [group, ...fileTree];
   }
 
   private dirChildren(
@@ -180,7 +271,7 @@ export class RequestsTreeProvider implements vscode.TreeDataProvider<NavNode> {
           uri: file.uri,
           requestCount,
           expanded: !collapseFiles,
-          children: buildFileChildren(file, groupBySections)
+          children: buildFileChildren(file, groupBySections, this.store)
         };
       });
 
@@ -192,13 +283,26 @@ export class RequestsTreeProvider implements vscode.TreeDataProvider<NavNode> {
 const fileNames = new WeakMap<ParsedFile, string>();
 
 /** Build the section/request subtree for a single file. */
-function buildFileChildren(file: ParsedFile, groupBySections: boolean): NavNode[] {
+function buildFileChildren(
+  file: ParsedFile,
+  groupBySections: boolean,
+  store: FavoritesStore
+): NavNode[] {
   const roots: NavNode[] = [];
 
   if (!groupBySections) {
     for (const region of file.regions) {
       if (region.kind === 'request') {
-        roots.push({ kind: 'request', uri: file.uri, line: region.requestLine, region });
+        const key = computeKey(region, file.uri);
+        roots.push({
+          kind: 'request',
+          uri: file.uri,
+          line: region.requestLine,
+          region,
+          pinned: store.isPinned(key),
+          key,
+          source: 'tree'
+        });
       }
     }
     return roots;
@@ -217,11 +321,15 @@ function buildFileChildren(file: ParsedFile, groupBySections: boolean): NavNode[
       target().push(node);
       stack.push({ level: region.level, node });
     } else {
+      const key = computeKey(region, file.uri);
       target().push({
         kind: 'request',
         uri: file.uri,
         line: region.requestLine,
-        region
+        region,
+        pinned: store.isPinned(key),
+        key,
+        source: 'tree'
       });
     }
   }

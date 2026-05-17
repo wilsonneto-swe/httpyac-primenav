@@ -2,7 +2,7 @@
   "name": "httpyac-primenav",
   "displayName": "httpYac PrimeNav",
   "description": "Workspace-wide tree and fuzzy search for .http / .rest files using httpYac conventions.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "wilsonneto-swe",
   "license": "MIT",
   "engines": {
@@ -68,6 +68,24 @@
         "title": "Send Request",
         "icon": "$(play)",
         "category": "httpYac PrimeNav"
+      },
+      {
+        "command": "httpyac-primenav.pin",
+        "title": "Pin Request",
+        "icon": "$(pin)",
+        "category": "httpYac PrimeNav"
+      },
+      {
+        "command": "httpyac-primenav.unpin",
+        "title": "Unpin Request",
+        "icon": "$(pinned)",
+        "category": "httpYac PrimeNav"
+      },
+      {
+        "command": "httpyac-primenav.removePin",
+        "title": "Remove Stale Pin",
+        "icon": "$(close)",
+        "category": "httpYac PrimeNav"
       }
     ],
     "menus": {
@@ -85,14 +103,46 @@
       ],
       "view/item/context": [
         {
+          "command": "httpyac-primenav.pin",
+          "when": "view == httpyacPrimeNav.tree && viewItem == request",
+          "group": "inline@1"
+        },
+        {
+          "command": "httpyac-primenav.unpin",
+          "when": "view == httpyacPrimeNav.tree && viewItem == request-pinned",
+          "group": "inline@1"
+        },
+        {
           "command": "httpyac-primenav.send",
           "when": "view == httpyacPrimeNav.tree && viewItem == request && httpyac-primenav.httpyacAvailable",
-          "group": "inline"
+          "group": "inline@2"
+        },
+        {
+          "command": "httpyac-primenav.send",
+          "when": "view == httpyacPrimeNav.tree && viewItem == request-pinned && httpyac-primenav.httpyacAvailable",
+          "group": "inline@2"
+        },
+        {
+          "command": "httpyac-primenav.removePin",
+          "when": "view == httpyacPrimeNav.tree && viewItem == stale-pin",
+          "group": "inline@1"
         }
       ],
       "commandPalette": [
         {
           "command": "httpyac-primenav.reveal",
+          "when": "false"
+        },
+        {
+          "command": "httpyac-primenav.pin",
+          "when": "false"
+        },
+        {
+          "command": "httpyac-primenav.unpin",
+          "when": "false"
+        },
+        {
+          "command": "httpyac-primenav.removePin",
           "when": "false"
         }
       ]
@@ -128,6 +178,11 @@
           "type": "boolean",
           "default": true,
           "description": "Group requests under `#### Section` headers."
+        },
+        "httpyacPrimeNav.showPinned": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show a Pinned group at the top of the tree for favorited requests."
         }
       }
     }

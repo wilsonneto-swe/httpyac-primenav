@@ -24,8 +24,15 @@ export function registerSendCommand(): vscode.Disposable {
         return;
       }
       try {
+        const doc = await vscode.workspace.openTextDocument(args.uri);
+        const editor = await vscode.window.showTextDocument(doc, { preview: true });
+        const line = Math.max(0, Math.min(args.line ?? 0, doc.lineCount - 1));
+        const range = doc.lineAt(line).range;
+        editor.selection = new vscode.Selection(range.start, range.end);
+        editor.revealRange(range, vscode.TextEditorRevealType.InCenterIfOutsideViewport);
+
         await vscode.commands.executeCommand('httpyac.send', args.uri, {
-          line: args.line
+          line
         });
       } catch (err) {
         console.error('httpyac-primenav: httpyac.send failed', err);

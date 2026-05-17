@@ -64,6 +64,7 @@ export function parseHttpFile(text: string, uri: vscode.Uri): ParsedFile {
     regions.push({
       kind: 'request',
       label,
+      name: b.name,
       title: b.title,
       method: b.method,
       url: b.url,

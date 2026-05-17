@@ -5,7 +5,9 @@ module.exports = {
   roots: ['<rootDir>/src'],
   testMatch: [
     '<rootDir>/src/parser/**/*.test.ts',
-    '<rootDir>/src/workspace/**/*.test.ts'
+    '<rootDir>/src/workspace/**/*.test.ts',
+    '<rootDir>/src/state/**/*.test.ts',
+    '<rootDir>/src/tree/**/*.test.ts'
   ],
   moduleNameMapper: {
     '^vscode$': '<rootDir>/src/test/vscode-mock.ts'

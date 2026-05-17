@@ -16,6 +16,8 @@ export interface RequestRegion {
   kind: 'request';
   /** From `# @name foo` if present, else from `### label`, else from URL. */
   label: string;
+  /** The raw `# @name` value, if the request was explicitly named. */
+  name?: string;
   /** Optional. `# @title` overrides label for display only. */
   title?: string;
   method?: Method;
