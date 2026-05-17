@@ -1,0 +1,229 @@
+import * as vscode from 'vscode';
+import { WorkspaceIndex } from '../workspace/workspaceIndex';
+import { ParsedFile, displayLabel } from '../types';
+import { methodIcon } from '../icons/methodIcon';
+import { FileNode, FolderNode, NavNode, RequestNode, SectionNode } from './treeItems';
+
+/** Above this many files, file nodes start collapsed. */
+const COLLAPSE_FILE_THRESHOLD = 5;
+
+interface DirEntry {
+  dirs: Map<string, DirEntry>;
+  files: ParsedFile[];
+}
+
+export class RequestsTreeProvider implements vscode.TreeDataProvider<NavNode> {
+  private readonly changeEmitter = new vscode.EventEmitter<NavNode | undefined | void>();
+  readonly onDidChangeTreeData = this.changeEmitter.event;
+
+  private roots: NavNode[] = [];
+
+  constructor(private readonly index: WorkspaceIndex) {
+    this.roots = this.build();
+    index.onDidChange(() => this.refresh());
+  }
+
+  refresh(): void {
+    this.roots = this.build();
+    this.changeEmitter.fire();
+  }
+
+  getChildren(element?: NavNode): NavNode[] {
+    if (!element) {
+      return this.roots;
+    }
+    return element.kind === 'request' ? [] : element.children;
+  }
+
+  getTreeItem(node: NavNode): vscode.TreeItem {
+    switch (node.kind) {
+      case 'folder':
+        return this.folderItem(node);
+      case 'file':
+        return this.fileItem(node);
+      case 'section':
+        return this.sectionItem(node);
+      case 'request':
+        return this.requestItem(node);
+    }
+  }
+
+  // --- tree item construction -------------------------------------------
+
+  private folderItem(node: FolderNode): vscode.TreeItem {
+    const item = new vscode.TreeItem(
+      node.label,
+      vscode.TreeItemCollapsibleState.Expanded
+    );
+    item.iconPath = vscode.ThemeIcon.Folder;
+    item.contextValue = 'folder';
+    return item;
+  }
+
+  private fileItem(node: FileNode): vscode.TreeItem {
+    const item = new vscode.TreeItem(
+      node.label,
+      node.expanded
+        ? vscode.TreeItemCollapsibleState.Expanded
+        : vscode.TreeItemCollapsibleState.Collapsed
+    );
+    item.resourceUri = node.uri;
+    item.iconPath = vscode.ThemeIcon.File;
+    item.description = `${node.requestCount} request${node.requestCount === 1 ? '' : 's'}`;
+    item.contextValue = 'file';
+    item.tooltip = node.uri.fsPath;
+    return item;
+  }
+
+  private sectionItem(node: SectionNode): vscode.TreeItem {
+    const item = new vscode.TreeItem(
+      node.label,
+      vscode.TreeItemCollapsibleState.Expanded
+    );
+    item.iconPath = new vscode.ThemeIcon('symbol-namespace');
+    item.contextValue = 'section';
+    return item;
+  }
+
+  private requestItem(node: RequestNode): vscode.TreeItem {
+    const { region } = node;
+    const item = new vscode.TreeItem(
+      displayLabel(region),
+      vscode.TreeItemCollapsibleState.None
+    );
+    item.iconPath = methodIcon(region.method, region.disabled);
+    item.contextValue = 'request';
+
+    const descParts: string[] = [];
+    if (region.method && !displayLabel(region).startsWith(region.method)) {
+      descParts.push(region.method);
+    }
+    if (region.disabled) {
+      descParts.push('(disabled)');
+    }
+    item.description = descParts.join(' ');
+
+    const tooltipLines: string[] = [];
+    if (region.method || region.url) {
+      tooltipLines.push(`${region.method ?? ''} ${region.url ?? ''}`.trim());
+    }
+    if (region.refs.length > 0) {
+      tooltipLines.push(`refs: ${region.refs.join(', ')}`);
+    }
+    item.tooltip = tooltipLines.join('\n') || undefined;
+
+    item.command = {
+      command: 'httpyac-primenav.reveal',
+      title: 'Reveal Request',
+      arguments: [{ uri: node.uri, line: node.line }]
+    };
+    return item;
+  }
+
+  // --- tree construction ------------------------------------------------
+
+  private build(): NavNode[] {
+    const files = this.index.getAll();
+    const multiRoot = (vscode.workspace.workspaceFolders?.length ?? 0) > 1;
+    const collapseFiles = files.length > COLLAPSE_FILE_THRESHOLD;
+    const groupBySections = vscode.workspace
+      .getConfiguration('httpyacPrimeNav')
+      .get<boolean>('groupBySections', true);
+
+    const root: DirEntry = { dirs: new Map(), files: [] };
+    for (const file of files) {
+      const rel = vscode.workspace.asRelativePath(file.uri, multiRoot);
+      const parts = rel.split(/[\\/]+/).filter(Boolean);
+      const fileName = parts.pop() ?? rel;
+      let cur = root;
+      for (const segment of parts) {
+        let next = cur.dirs.get(segment);
+        if (!next) {
+          next = { dirs: new Map(), files: [] };
+          cur.dirs.set(segment, next);
+        }
+        cur = next;
+      }
+      cur.files.push(file);
+      // remember display name without mutating ParsedFile
+      fileNames.set(file, fileName);
+    }
+
+    return this.dirChildren(root, groupBySections, collapseFiles);
+  }
+
+  private dirChildren(
+    dir: DirEntry,
+    groupBySections: boolean,
+    collapseFiles: boolean
+  ): NavNode[] {
+    const folders: FolderNode[] = [...dir.dirs.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([label, entry]) => ({
+        kind: 'folder' as const,
+        label,
+        children: this.dirChildren(entry, groupBySections, collapseFiles)
+      }));
+
+    const files: FileNode[] = dir.files
+      .slice()
+      .sort((a, b) =>
+        (fileNames.get(a) ?? '').localeCompare(fileNames.get(b) ?? '')
+      )
+      .map((file) => {
+        const requestCount = file.regions.filter(
+          (r) => r.kind === 'request'
+        ).length;
+        return {
+          kind: 'file' as const,
+          label: fileNames.get(file) ?? file.uri.fsPath,
+          uri: file.uri,
+          requestCount,
+          expanded: !collapseFiles,
+          children: buildFileChildren(file, groupBySections)
+        };
+      });
+
+    return [...folders, ...files];
+  }
+}
+
+/** Per-build cache of display file names, keyed by ParsedFile identity. */
+const fileNames = new WeakMap<ParsedFile, string>();
+
+/** Build the section/request subtree for a single file. */
+function buildFileChildren(file: ParsedFile, groupBySections: boolean): NavNode[] {
+  const roots: NavNode[] = [];
+
+  if (!groupBySections) {
+    for (const region of file.regions) {
+      if (region.kind === 'request') {
+        roots.push({ kind: 'request', uri: file.uri, line: region.requestLine, region });
+      }
+    }
+    return roots;
+  }
+
+  const stack: Array<{ level: number; node: SectionNode }> = [];
+  const target = (): NavNode[] =>
+    stack.length > 0 ? stack[stack.length - 1].node.children : roots;
+
+  for (const region of file.regions) {
+    if (region.kind === 'section') {
+      while (stack.length > 0 && stack[stack.length - 1].level >= region.level) {
+        stack.pop();
+      }
+      const node: SectionNode = { kind: 'section', label: region.label, children: [] };
+      target().push(node);
+      stack.push({ level: region.level, node });
+    } else {
+      target().push({
+        kind: 'request',
+        uri: file.uri,
+        line: region.requestLine,
+        region
+      });
+    }
+  }
+  return roots;
+}

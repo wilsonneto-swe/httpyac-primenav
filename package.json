@@ -1,0 +1,163 @@
+{
+  "name": "httpyac-primenav",
+  "displayName": "httpYac PrimeNav",
+  "description": "Workspace-wide tree and fuzzy search for .http / .rest files using httpYac conventions.",
+  "version": "0.1.0",
+  "publisher": "wilsonneto-swe",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "http",
+    "rest",
+    "httpyac",
+    "navigation",
+    "api"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wilsonneto-swe/httpyac-primenav.git"
+  },
+  "icon": "images/icon.png",
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onLanguage:http",
+    "onView:httpyacPrimeNav.tree"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "httpyacPrimeNav",
+          "title": "httpYac PrimeNav",
+          "icon": "images/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "httpyacPrimeNav": [
+        {
+          "id": "httpyacPrimeNav.tree",
+          "name": "Requests"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "httpyac-primenav.refresh",
+        "title": "Refresh",
+        "icon": "$(refresh)",
+        "category": "httpYac PrimeNav"
+      },
+      {
+        "command": "httpyac-primenav.search",
+        "title": "Search Requests…",
+        "category": "httpYac PrimeNav"
+      },
+      {
+        "command": "httpyac-primenav.reveal",
+        "title": "Reveal Request",
+        "category": "httpYac PrimeNav"
+      },
+      {
+        "command": "httpyac-primenav.send",
+        "title": "Send Request",
+        "icon": "$(play)",
+        "category": "httpYac PrimeNav"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "httpyac-primenav.search",
+          "when": "view == httpyacPrimeNav.tree",
+          "group": "navigation@1"
+        },
+        {
+          "command": "httpyac-primenav.refresh",
+          "when": "view == httpyacPrimeNav.tree",
+          "group": "navigation@2"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "httpyac-primenav.send",
+          "when": "view == httpyacPrimeNav.tree && viewItem == request && httpyac-primenav.httpyacAvailable",
+          "group": "inline"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "httpyac-primenav.reveal",
+          "when": "false"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "httpyac-primenav.search",
+        "args": { "scope": "file" },
+        "key": "ctrl+shift+h",
+        "mac": "cmd+shift+h"
+      },
+      {
+        "command": "httpyac-primenav.search",
+        "args": { "scope": "workspace" },
+        "key": "ctrl+alt+h",
+        "mac": "cmd+ctrl+h"
+      }
+    ],
+    "configuration": {
+      "title": "httpYac PrimeNav",
+      "properties": {
+        "httpyacPrimeNav.fileGlob": {
+          "type": "string",
+          "default": "**/*.{http,rest}",
+          "description": "Glob used to discover request files."
+        },
+        "httpyacPrimeNav.excludeGlob": {
+          "type": "string",
+          "default": "**/node_modules/**",
+          "description": "Glob excluded from discovery."
+        },
+        "httpyacPrimeNav.groupBySections": {
+          "type": "boolean",
+          "default": true,
+          "description": "Group requests under `#### Section` headers."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "webpack",
+    "watch": "webpack --watch",
+    "package": "webpack --mode production --devtool hidden-source-map",
+    "compile-tests": "tsc -p ./",
+    "lint": "eslint src --ext ts",
+    "test": "jest",
+    "test:coverage": "jest --coverage",
+    "test:integration": "npm run compile-tests && vscode-test"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.12",
+    "@types/mocha": "^10.0.6",
+    "@types/node": "^20.11.30",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^7.4.0",
+    "@typescript-eslint/parser": "^7.4.0",
+    "@vscode/test-cli": "^0.0.9",
+    "@vscode/test-electron": "^2.3.9",
+    "eslint": "^8.57.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.2",
+    "ts-loader": "^9.5.1",
+    "typescript": "^5.4.3",
+    "webpack": "^5.91.0",
+    "webpack-cli": "^5.1.4"
+  }
+}

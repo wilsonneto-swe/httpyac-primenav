@@ -1,0 +1,16 @@
+#### Auth
+
+### login
+# @name login
+POST https://example.com/login
+Content-Type: application/json
+
+{ "user": "demo" }
+
+### me
+GET https://example.com/me
+Authorization: Bearer {{login.token}}
+
+### logout
+# @disabled
+DELETE https://example.com/session

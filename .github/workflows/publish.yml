@@ -1,0 +1,54 @@
+name: Publish
+
+# Publishes the extension when a version tag (e.g. v0.1.0) is pushed.
+# Can also be triggered manually from the Actions tab.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      OPEN_VSX_TOKEN: ${{ secrets.OPEN_VSX_TOKEN }}
+      VSCE_PAT: ${{ secrets.VSCE_PAT }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Package VSIX
+        run: npx --yes @vscode/vsce package --out httpyac-primenav.vsix
+
+      # Open VSX is the registry Cursor installs extensions from.
+      - name: Publish to Open VSX
+        if: ${{ env.OPEN_VSX_TOKEN != '' }}
+        run: npx --yes ovsx publish httpyac-primenav.vsix -p "$OPEN_VSX_TOKEN"
+
+      # Optional — only runs when a VSCE_PAT secret is configured.
+      - name: Publish to VS Code Marketplace
+        if: ${{ env.VSCE_PAT != '' }}
+        run: npx --yes @vscode/vsce publish --packagePath httpyac-primenav.vsix --pat "$VSCE_PAT"
+
+      - name: Attach VSIX to the GitHub release
+        if: ${{ startsWith(github.ref, 'refs/tags/') }}
+        uses: softprops/action-gh-release@v2
+        with:
+          files: httpyac-primenav.vsix
