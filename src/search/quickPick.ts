@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { IndexedRequest, WorkspaceIndex } from '../workspace/workspaceIndex';
-import { methodCodicon } from '../icons/methodIcon';
+import { methodBadgeIcon } from '../icons/methodIcon';
 import { displayLabel } from '../types';
 import { FavoritesStore } from '../state/favoritesStore';
 import { computeKey } from '../state/requestKey';
@@ -27,7 +27,8 @@ function isHttpFile(uri: vscode.Uri | undefined): uri is vscode.Uri {
 /** Registers the workspace-wide fuzzy request search command. */
 export function registerSearchCommand(
   index: WorkspaceIndex,
-  store: FavoritesStore
+  store: FavoritesStore,
+  extensionUri: vscode.Uri
 ): vscode.Disposable {
   return vscode.commands.registerCommand(
     'httpyac-primenav.search',
@@ -79,13 +80,18 @@ export function registerSearchCommand(
         isPinned ? unpinButton : pinButton,
         ...(httpyacAvailable ? [sendButton] : [])
       ];
+      const path = vscode.workspace.asRelativePath(file.uri);
+      const descriptionParts = [
+        ...(isPinned ? ['Pinned'] : []),
+        ...(method ? [method] : []),
+        path
+      ];
       return {
-        label: `${methodCodicon(region.method, region.disabled)} ${method} ${displayLabel(region)}`
+        label: displayLabel(region)
           .replace(/\s+/g, ' ')
           .trim(),
-        description: isPinned
-          ? `Pinned · ${vscode.workspace.asRelativePath(file.uri)}`
-          : vscode.workspace.asRelativePath(file.uri),
+        iconPath: methodBadgeIcon(region.method, region.disabled, extensionUri),
+        description: descriptionParts.join(' · '),
         detail: region.url ? truncate(region.url, 120) : undefined,
         buttons: itemButtons,
         uri: file.uri,

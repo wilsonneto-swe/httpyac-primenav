@@ -2,6 +2,27 @@
 
 All notable changes to **httpYac PrimeNav** are documented in this file.
 
+## [0.3.0] - 2026-05-17
+
+### Added
+
+- **Dual tree views** — the Activity Bar sidebar now shows two panels:
+  - **Current File** (top) — appears only when the active editor is an `.http` / `.rest`
+    file; lists its sections and requests expanded by default.
+  - **Workspace Requests** (bottom) — the full workspace tree, collapsed by default.
+    When a request file is active the workspace tree automatically reveals and expands
+    the path to that file.
+- **Method badge icons** — `GET`, `POST`, `PUT`, `PATCH`, `DELETE` and other HTTP verbs
+  are now rendered as coloured SVG badge labels instead of generic codicons, making the
+  method immediately identifiable at a glance. The search/quick-pick uses a larger
+  horizontal variant of the same badge.
+- **Tree collapses on first open** — all folders, files and sections start collapsed;
+  the state is then preserved per-session so manually expanded/collapsed nodes are
+  remembered across refreshes.
+- **Active-file reveal** — switching to an `.http` / `.rest` editor automatically
+  expands the path to that file in the Workspace Requests tree. Re-parses (triggered by
+  file saves) re-run the reveal so the tree stays in sync without a manual refresh.
+
 ## [0.2.1] - 2026-05-17
 
 ### Fixed

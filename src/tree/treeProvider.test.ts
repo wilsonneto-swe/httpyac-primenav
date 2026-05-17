@@ -1,9 +1,9 @@
 import * as vscodeMock from '../test/vscode-mock';
 import { __test, FakeMemento } from '../test/vscode-mock';
 import { WorkspaceIndex } from '../workspace/workspaceIndex';
-import { RequestsTreeProvider } from './treeProvider';
+import { RequestsTreeProvider, CurrentFileTreeProvider } from './treeProvider';
 import { FavoritesStore } from '../state/favoritesStore';
-import { NavNode, GroupNode, RequestNode } from './treeItems';
+import { NavNode, GroupNode, RequestNode, SectionNode } from './treeItems';
 
 const FILE_A = '/workspace/a.http';
 
@@ -293,6 +293,141 @@ describe('RequestsTreeProvider', () => {
     expect(authId).toBe('section:file:///workspace/auth/api.http#section:0');
     expect(payId).toBe('section:file:///workspace/pay/api.http#section:0');
     expect(authId).not.toBe(payId);
+
+    index.dispose();
+  });
+
+  it('13. expandable nodes start collapsed', async () => {
+    __test.setFile('/workspace/services/auth/api.http', '#### Auth\n# @name login\nPOST https://auth/login');
+    const { provider, index, store } = await makeProvider();
+
+    store.togglePin('name:file:///workspace/services/auth/api.http#login', {
+      label: 'login',
+      method: 'POST',
+      url: 'https://auth/login',
+      uri: 'file:///workspace/services/auth/api.http'
+    });
+
+    const roots = provider.getChildren();
+    const group = roots.find((n) => n.kind === 'group')!;
+    const servicesFolder = roots.find((n) => n.kind === 'folder')!;
+    const authFolder = provider.getChildren(servicesFolder)[0];
+    const fileNode = provider.getChildren(authFolder)[0];
+    const sectionNode = provider.getChildren(fileNode)[0];
+
+    expect(provider.getTreeItem(group).collapsibleState).toBe(vscodeMock.TreeItemCollapsibleState.Collapsed);
+    expect(provider.getTreeItem(servicesFolder).collapsibleState).toBe(vscodeMock.TreeItemCollapsibleState.Collapsed);
+    expect(provider.getTreeItem(authFolder).collapsibleState).toBe(vscodeMock.TreeItemCollapsibleState.Collapsed);
+    expect(provider.getTreeItem(fileNode).collapsibleState).toBe(vscodeMock.TreeItemCollapsibleState.Collapsed);
+    expect(provider.getTreeItem(sectionNode).collapsibleState).toBe(vscodeMock.TreeItemCollapsibleState.Collapsed);
+
+    index.dispose();
+  });
+
+  it('14. finds a nested file node by uri for reveal', async () => {
+    __test.setFile('/workspace/services/auth/api.http', 'GET https://auth/me');
+    const { provider, index } = await makeProvider();
+
+    const uri = vscodeMock.Uri.file('/workspace/services/auth/api.http') as unknown as import('vscode').Uri;
+    const node = provider.findFileNode(uri);
+
+    expect(node?.kind).toBe('file');
+    expect(node?.label).toBe('api.http');
+
+    index.dispose();
+  });
+});
+
+describe('CurrentFileTreeProvider', () => {
+  beforeEach(() => __test.reset());
+
+  async function makeCurrentFileProvider(storeMemento = new FakeMemento()) {
+    const index = new WorkspaceIndex();
+    await index.init();
+    const store = new FavoritesStore(storeMemento);
+    const provider = new CurrentFileTreeProvider(index, store);
+    return { index, store, provider };
+  }
+
+  it('15. returns empty when no active file is set', async () => {
+    __test.setFile('/workspace/a.http', 'GET https://example.com/health');
+    const { provider, index } = await makeCurrentFileProvider();
+
+    expect(provider.getChildren()).toHaveLength(0);
+
+    index.dispose();
+  });
+
+  it('16. returns sections and requests for the active file', async () => {
+    __test.setFile('/workspace/a.http', '#### Auth\n# @name login\nPOST https://auth/login\n###\nGET https://auth/me');
+    const { provider, index } = await makeCurrentFileProvider();
+
+    const uri = vscodeMock.Uri.file('/workspace/a.http') as unknown as import('vscode').Uri;
+    provider.setActiveFile(uri);
+
+    const roots = provider.getChildren();
+    // groupBySections is true by default → first child is a section
+    expect(roots.length).toBeGreaterThan(0);
+    expect(roots[0].kind).toBe('section');
+
+    index.dispose();
+  });
+
+  it('17. sections are expanded (collapsibleState = Expanded) in current file view', async () => {
+    __test.setFile('/workspace/a.http', '#### Auth\n# @name login\nPOST https://auth/login');
+    const { provider, index } = await makeCurrentFileProvider();
+
+    const uri = vscodeMock.Uri.file('/workspace/a.http') as unknown as import('vscode').Uri;
+    provider.setActiveFile(uri);
+
+    const roots = provider.getChildren();
+    const section = roots[0] as SectionNode;
+    expect(provider.getTreeItem(section).collapsibleState).toBe(vscodeMock.TreeItemCollapsibleState.Expanded);
+
+    index.dispose();
+  });
+
+  it('18. returns empty when active file uri is not in the index', async () => {
+    __test.setFile('/workspace/a.http', 'GET https://example.com/health');
+    const { provider, index } = await makeCurrentFileProvider();
+
+    const uri = vscodeMock.Uri.file('/workspace/unknown.http') as unknown as import('vscode').Uri;
+    provider.setActiveFile(uri);
+
+    expect(provider.getChildren()).toHaveLength(0);
+
+    index.dispose();
+  });
+
+  it('19. updates when setActiveFile is called with a different uri', async () => {
+    __test.setFile('/workspace/a.http', 'GET https://a.com');
+    __test.setFile('/workspace/b.http', 'POST https://b.com');
+    const { provider, index } = await makeCurrentFileProvider();
+
+    const uriA = vscodeMock.Uri.file('/workspace/a.http') as unknown as import('vscode').Uri;
+    const uriB = vscodeMock.Uri.file('/workspace/b.http') as unknown as import('vscode').Uri;
+
+    provider.setActiveFile(uriA);
+    const reqA = provider.getChildren()[0] as RequestNode;
+    expect(reqA.region.url).toBe('https://a.com');
+
+    provider.setActiveFile(uriB);
+    const reqB = provider.getChildren()[0] as RequestNode;
+    expect(reqB.region.url).toBe('https://b.com');
+
+    index.dispose();
+  });
+
+  it('20. returns empty after setActiveFile(undefined)', async () => {
+    __test.setFile('/workspace/a.http', 'GET https://example.com');
+    const { provider, index } = await makeCurrentFileProvider();
+
+    const uri = vscodeMock.Uri.file('/workspace/a.http') as unknown as import('vscode').Uri;
+    provider.setActiveFile(uri);
+    expect(provider.getChildren().length).toBeGreaterThan(0);
+
+    provider.setActiveFile(undefined);
+    expect(provider.getChildren()).toHaveLength(0);
 
     index.dispose();
   });

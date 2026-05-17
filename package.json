@@ -2,7 +2,7 @@
   "name": "httpyac-primenav",
   "displayName": "httpYac PrimeNav",
   "description": "Workspace-wide tree and fuzzy search for .http / .rest files using httpYac conventions.",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "publisher": "wilsonneto-swe",
   "license": "MIT",
   "engines": {
@@ -26,7 +26,8 @@
   "main": "./dist/extension.js",
   "activationEvents": [
     "onLanguage:http",
-    "onView:httpyacPrimeNav.tree"
+    "onView:httpyacPrimeNav.tree",
+    "onView:httpyacPrimeNav.currentFileTree"
   ],
   "contributes": {
     "viewsContainers": {
@@ -41,8 +42,13 @@
     "views": {
       "httpyacPrimeNav": [
         {
+          "id": "httpyacPrimeNav.currentFileTree",
+          "name": "Current File",
+          "when": "httpyac-primenav.activeHttpFile"
+        },
+        {
           "id": "httpyacPrimeNav.tree",
-          "name": "Requests"
+          "name": "Workspace Requests"
         }
       ]
     },
@@ -104,22 +110,22 @@
       "view/item/context": [
         {
           "command": "httpyac-primenav.pin",
-          "when": "view == httpyacPrimeNav.tree && viewItem == request",
+          "when": "(view == httpyacPrimeNav.tree || view == httpyacPrimeNav.currentFileTree) && viewItem == request",
           "group": "inline@1"
         },
         {
           "command": "httpyac-primenav.unpin",
-          "when": "view == httpyacPrimeNav.tree && viewItem == request-pinned",
+          "when": "(view == httpyacPrimeNav.tree || view == httpyacPrimeNav.currentFileTree) && viewItem == request-pinned",
           "group": "inline@1"
         },
         {
           "command": "httpyac-primenav.send",
-          "when": "view == httpyacPrimeNav.tree && viewItem == request && httpyac-primenav.httpyacAvailable",
+          "when": "(view == httpyacPrimeNav.tree || view == httpyacPrimeNav.currentFileTree) && viewItem == request && httpyac-primenav.httpyacAvailable",
           "group": "inline@2"
         },
         {
           "command": "httpyac-primenav.send",
-          "when": "view == httpyacPrimeNav.tree && viewItem == request-pinned && httpyac-primenav.httpyacAvailable",
+          "when": "(view == httpyacPrimeNav.tree || view == httpyacPrimeNav.currentFileTree) && viewItem == request-pinned && httpyac-primenav.httpyacAvailable",
           "group": "inline@2"
         },
         {

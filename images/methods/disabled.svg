@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <rect width="16" height="16" rx="3" fill="#6e7681"/>
+  <path d="M3 8h10" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" opacity="0.95"/>
+  <text x="8" y="10.1" text-anchor="middle" font-family="Arial, sans-serif" font-size="4.4" font-weight="700" fill="#ffffff" opacity="0.35">OFF</text>
+</svg>
