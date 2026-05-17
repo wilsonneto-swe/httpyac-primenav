@@ -2,6 +2,17 @@
 
 All notable changes to **httpYac PrimeNav** are documented in this file.
 
+## [0.2.1] - 2026-05-17
+
+### Fixed
+
+- **Tree ID collisions in large projects** — folder nodes now use their full
+  relative path as the stable ID (e.g. `folder:services/auth/api` instead of
+  `folder:api`), so two folders with the same name under different parents no
+  longer crash the VS Code tree registry with _"element with id … is already
+  registered"_. Section nodes also received a URI + line-number ID, making
+  same-label sections across different files distinct.
+
 ## [0.2.0] - 2026-05-17
 
 ### Added
