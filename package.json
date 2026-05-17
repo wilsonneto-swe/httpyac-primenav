@@ -2,7 +2,7 @@
   "name": "httpyac-primenav",
   "displayName": "httpYac PrimeNav",
   "description": "Workspace-wide tree and fuzzy search for .http / .rest files using httpYac conventions.",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "publisher": "wilsonneto-swe",
   "license": "MIT",
   "engines": {
@@ -150,13 +150,17 @@
     "keybindings": [
       {
         "command": "httpyac-primenav.search",
-        "args": { "scope": "file" },
+        "args": {
+          "scope": "file"
+        },
         "key": "ctrl+shift+h",
         "mac": "cmd+shift+h"
       },
       {
         "command": "httpyac-primenav.search",
-        "args": { "scope": "workspace" },
+        "args": {
+          "scope": "workspace"
+        },
         "key": "ctrl+alt+h",
         "mac": "cmd+ctrl+h"
       }

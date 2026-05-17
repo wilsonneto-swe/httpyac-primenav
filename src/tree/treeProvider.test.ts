@@ -192,4 +192,108 @@ describe('RequestsTreeProvider', () => {
 
     index.dispose();
   });
+
+  it('9. same folder name in different parents produces distinct ids', async () => {
+    // services/auth/api/login.http and services/pay/api/charge.http
+    // Both have a sub-folder named "api" but under different parents.
+    __test.setFile('/workspace/services/auth/api/login.http', 'GET https://auth/login');
+    __test.setFile('/workspace/services/pay/api/charge.http', 'GET https://pay/charge');
+    const { provider, index } = await makeProvider();
+
+    // Root should have one folder "services"
+    const roots = provider.getChildren();
+    expect(roots[0].kind).toBe('folder');
+
+    // Descend: services → auth + pay
+    const servicesNode = roots[0] as NavNode & { kind: 'folder' };
+    const serviceChildren = provider.getChildren(servicesNode);
+    const authFolder = serviceChildren.find((n) => n.kind === 'folder' && (n as NavNode & { label: string }).label === 'auth')!;
+    const payFolder  = serviceChildren.find((n) => n.kind === 'folder' && (n as NavNode & { label: string }).label === 'pay')!;
+
+    // Each has a sub-folder named "api"
+    const authApiFolder = provider.getChildren(authFolder)[0];
+    const payApiFolder  = provider.getChildren(payFolder)[0];
+
+    expect(authApiFolder.kind).toBe('folder');
+    expect(payApiFolder.kind).toBe('folder');
+
+    const authApiId = provider.getTreeItem(authApiFolder).id;
+    const payApiId  = provider.getTreeItem(payApiFolder).id;
+
+    expect(authApiId).toBe('folder:services/auth/api');
+    expect(payApiId).toBe('folder:services/pay/api');
+    expect(authApiId).not.toBe(payApiId);
+
+    index.dispose();
+  });
+
+  it('10. same filename in different folders produces distinct file ids', async () => {
+    __test.setFile('/workspace/auth/requests.http', 'GET https://auth/me');
+    __test.setFile('/workspace/pay/requests.http',  'GET https://pay/me');
+    const { provider, index } = await makeProvider();
+
+    const roots = provider.getChildren();
+    const authFolder = roots.find((n) => n.kind === 'folder' && (n as NavNode & { label: string }).label === 'auth')!;
+    const payFolder  = roots.find((n) => n.kind === 'folder' && (n as NavNode & { label: string }).label === 'pay')!;
+
+    const authFile = provider.getChildren(authFolder)[0];
+    const payFile  = provider.getChildren(payFolder)[0];
+
+    const authId = provider.getTreeItem(authFile).id;
+    const payId  = provider.getTreeItem(payFile).id;
+
+    expect(authId).toBe('file:file:///workspace/auth/requests.http');
+    expect(payId).toBe('file:file:///workspace/pay/requests.http');
+    expect(authId).not.toBe(payId);
+
+    index.dispose();
+  });
+
+  it('11. requests with same @name in different files produce distinct ids', async () => {
+    __test.setFile('/workspace/auth/api.http', '# @name login\nPOST https://auth/login');
+    __test.setFile('/workspace/pay/api.http',  '# @name login\nPOST https://pay/login');
+    const { provider, index } = await makeProvider();
+
+    const roots = provider.getChildren();
+    const authFolder = roots.find((n) => n.kind === 'folder' && (n as NavNode & { label: string }).label === 'auth')!;
+    const payFolder  = roots.find((n) => n.kind === 'folder' && (n as NavNode & { label: string }).label === 'pay')!;
+
+    const authReq = provider.getChildren(provider.getChildren(authFolder)[0])[0];
+    const payReq  = provider.getChildren(provider.getChildren(payFolder)[0])[0];
+
+    const authId = provider.getTreeItem(authReq).id;
+    const payId  = provider.getTreeItem(payReq).id;
+
+    expect(authId).toBe('request:tree:name:file:///workspace/auth/api.http#login');
+    expect(payId).toBe('request:tree:name:file:///workspace/pay/api.http#login');
+    expect(authId).not.toBe(payId);
+
+    index.dispose();
+  });
+
+  it('12. sections with same label in different files have distinct ids', async () => {
+    __test.setFile('/workspace/auth/api.http', '#### Auth\n# @name me\nGET https://auth/me');
+    __test.setFile('/workspace/pay/api.http',  '#### Auth\n# @name charge\nGET https://pay/charge');
+    const { provider, index } = await makeProvider();
+
+    const roots = provider.getChildren();
+    const authFolder = roots.find((n) => n.kind === 'folder' && (n as NavNode & { label: string }).label === 'auth')!;
+    const payFolder  = roots.find((n) => n.kind === 'folder' && (n as NavNode & { label: string }).label === 'pay')!;
+
+    const authSection = provider.getChildren(provider.getChildren(authFolder)[0])[0];
+    const paySection  = provider.getChildren(provider.getChildren(payFolder)[0])[0];
+
+    expect(authSection.kind).toBe('section');
+    expect(paySection.kind).toBe('section');
+
+    const authId = provider.getTreeItem(authSection).id;
+    const payId  = provider.getTreeItem(paySection).id;
+
+    // Both are "Auth" sections but from different files → different ids
+    expect(authId).toBe('section:file:///workspace/auth/api.http#section:0');
+    expect(payId).toBe('section:file:///workspace/pay/api.http#section:0');
+    expect(authId).not.toBe(payId);
+
+    index.dispose();
+  });
 });

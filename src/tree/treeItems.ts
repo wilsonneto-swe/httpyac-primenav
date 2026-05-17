@@ -5,7 +5,10 @@ import { PinnedEntry } from '../state/favoritesStore';
 /** A filesystem folder that (transitively) contains request files. */
 export interface FolderNode {
   kind: 'folder';
+  /** Display name — the last path segment only. */
   label: string;
+  /** Full relative path from the workspace root, used as a stable tree ID. */
+  id: string;
   children: NavNode[];
 }
 
@@ -23,6 +26,11 @@ export interface FileNode {
 export interface SectionNode {
   kind: 'section';
   label: string;
+  /**
+   * Stable identity: `${uri.toString()}#section:${startLine}`.
+   * Unique even when two sections share the same label.
+   */
+  id: string;
   children: NavNode[];
 }
 

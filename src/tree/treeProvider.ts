@@ -87,7 +87,7 @@ export class RequestsTreeProvider implements vscode.TreeDataProvider<NavNode> {
       node.label,
       vscode.TreeItemCollapsibleState.Expanded
     );
-    item.id = `folder:${node.label}`;
+    item.id = `folder:${node.id}`;
     item.iconPath = vscode.ThemeIcon.Folder;
     item.contextValue = 'folder';
     return item;
@@ -114,6 +114,7 @@ export class RequestsTreeProvider implements vscode.TreeDataProvider<NavNode> {
       node.label,
       vscode.TreeItemCollapsibleState.Expanded
     );
+    item.id = `section:${node.id}`;
     item.iconPath = new vscode.ThemeIcon('symbol-namespace');
     item.contextValue = 'section';
     return item;
@@ -246,15 +247,20 @@ export class RequestsTreeProvider implements vscode.TreeDataProvider<NavNode> {
   private dirChildren(
     dir: DirEntry,
     groupBySections: boolean,
-    collapseFiles: boolean
+    collapseFiles: boolean,
+    parentPath = ''
   ): NavNode[] {
     const folders: FolderNode[] = [...dir.dirs.entries()]
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([label, entry]) => ({
-        kind: 'folder' as const,
-        label,
-        children: this.dirChildren(entry, groupBySections, collapseFiles)
-      }));
+      .map(([label, entry]) => {
+        const id = parentPath ? `${parentPath}/${label}` : label;
+        return {
+          kind: 'folder' as const,
+          label,
+          id,
+          children: this.dirChildren(entry, groupBySections, collapseFiles, id)
+        };
+      });
 
     const files: FileNode[] = dir.files
       .slice()
@@ -317,7 +323,12 @@ function buildFileChildren(
       while (stack.length > 0 && stack[stack.length - 1].level >= region.level) {
         stack.pop();
       }
-      const node: SectionNode = { kind: 'section', label: region.label, children: [] };
+      const node: SectionNode = {
+        kind: 'section',
+        label: region.label,
+        id: `${file.uri.toString()}#section:${region.startLine}`,
+        children: []
+      };
       target().push(node);
       stack.push({ level: region.level, node });
     } else {
