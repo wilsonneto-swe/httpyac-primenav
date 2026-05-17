@@ -52,18 +52,6 @@ If a pinned request is deleted or renamed, its tree entry turns into a stale *(m
 | `httpyacPrimeNav.showPinned`      | `true`               | Show the Pinned group at the top of the tree. |
 
 
-## Development
-
-```bash
-npm install
-npm run watch        # webpack in watch mode
-npm test             # jest unit tests (parser + workspace index)
-npm run lint
-npm run test:integration   # @vscode/test-electron smoke test
-```
-
-Press `F5` in VS Code / Cursor to launch the Extension Development Host.
-
 ## License
 
 MIT
