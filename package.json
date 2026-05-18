@@ -1,7 +1,7 @@
 {
   "name": "httpyac-primenav",
-  "displayName": "httpYac PrimeNav",
-  "description": "Workspace-wide tree and fuzzy search for .http / .rest files using httpYac conventions.",
+  "displayName": "httpYac - PrimeNav",
+  "description": "Stop scrolling through .http files. Workspace-wide navigation tree, global search, and pin feature. Then send via httpYac.",
   "version": "0.3.0",
   "publisher": "wilsonneto-swe",
   "license": "MIT",
