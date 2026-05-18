@@ -21,6 +21,7 @@ suite('httpYac PrimeNav — smoke test', () => {
       'httpyac-primenav.refresh',
       'httpyac-primenav.reveal',
       'httpyac-primenav.send',
+      'httpyac-primenav.runFileTests',
       'httpyac-primenav.pin',
       'httpyac-primenav.unpin',
       'httpyac-primenav.removePin'
@@ -49,5 +50,10 @@ suite('httpYac PrimeNav — smoke test', () => {
     await vscode.commands.executeCommand('httpyac-primenav.pin', undefined);
     await vscode.commands.executeCommand('httpyac-primenav.unpin', undefined);
     await vscode.commands.executeCommand('httpyac-primenav.removePin', undefined);
+  });
+
+  test('run file tests command executes without throwing when called with no arg', async () => {
+    await activate();
+    await vscode.commands.executeCommand('httpyac-primenav.runFileTests', undefined);
   });
 });
