@@ -2,7 +2,7 @@
   "name": "httpyac-primenav",
   "displayName": "httpYac - PrimeNav",
   "description": "Stop scrolling through .http files. Workspace-wide navigation tree, global search, and pin feature. Then send via httpYac.",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "publisher": "wilsonneto-swe",
   "license": "MIT",
   "engines": {
