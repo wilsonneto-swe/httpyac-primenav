@@ -1,5 +1,7 @@
 # httpYac PrimeNav
 
+> Stop scrolling through .http files. Workspace-wide navigation tree, global search, and pin feature. Then send via httpYac.
+
 Workspace-wide navigation for `.http` and `.rest` files using [httpYac](https://httpyac.github.io/) conventions.
 
 It adds a dual-panel tree, fuzzy search and metadata-aware grouping for httpYac request files.
