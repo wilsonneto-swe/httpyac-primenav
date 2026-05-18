@@ -4,6 +4,7 @@ import { RequestsTreeProvider, CurrentFileTreeProvider } from './tree/treeProvid
 import { registerSearchCommand } from './search/quickPick';
 import { registerRevealCommand } from './commands/revealRequest';
 import { registerSendCommand } from './commands/sendRequest';
+import { registerRunFileTestsCommand } from './commands/runFileTests';
 import { FavoritesStore } from './state/favoritesStore';
 import { computeKey } from './state/requestKey';
 import { displayLabel } from './types';
@@ -66,7 +67,11 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
     vscode.window.onDidChangeActiveTextEditor((e) => syncActiveHttpFile(e?.document.uri)),
     registerSearchCommand(index, store, ctx.extensionUri),
     registerRevealCommand(),
-    registerSendCommand()
+    registerSendCommand(),
+    registerRunFileTestsCommand(() => {
+      const uri = vscode.window.activeTextEditor?.document.uri;
+      return isHttpRequestFile(uri) ? uri : undefined;
+    })
   );
 
   // Initialize both views with the current editor state on activation

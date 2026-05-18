@@ -2,6 +2,16 @@
 
 All notable changes to **httpYac PrimeNav** are documented in this file.
 
+## [0.3.1] - 2026-05-18
+
+### Added
+
+- **Run file tests from the tree** — a play action on each file in **Workspace
+  Requests** runs all httpYac tests in that file via VS Code's test runner (same as
+  **Run Tests in Current File**). The **Current File** panel title bar also has a play
+  button to run tests for the active `.http` / `.rest` file. Requires the httpYac
+  extension with test controller support enabled.
+
 ## [0.3.0] - 2026-05-17
 
 ### Added
